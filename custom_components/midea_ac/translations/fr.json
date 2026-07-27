@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "Activer le bip",
+          "enable_hvac_action": "Activer l'action HVAC",
           "temp_step": "Palier de température",
           "fan_speed_step": "Palier de vitesse du ventilateur",
           "max_connection_lifetime": "Durée maximale de connexion",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "Activez le rapport d'action HVAC. L'état natif est utilisé pour les modes Arrêt, Sec et Ventilation. Pour les modes Refroidissement et Chauffage, la détection spécifique au modèle n'est pas encore implémentée, donc un secours basé sur la température est utilisé (configurable ci-dessous).",
           "temp_step": "Taille du palier pour le réglage de la température",
           "fan_speed_step": "Taille du palier pour le réglage de la vitesses personnalisé du ventilateur",
           "max_connection_lifetime": "Durée maximale en secondes pour laquelle une connexion sera utilisée (minimum 15 secondes)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Spécifiez des modes de fonctionnement supplémentaires"
+            }
+          },
+          "hvac_action": {
+            "name": "Configuration de l'action HVAC",
+            "data": {
+              "temperature_threshold": "Seuil de température",
+              "derive_from_temp_fallback": "Dériver de la température en secours"
+            },
+            "data_description": {
+              "temperature_threshold": "Dépassement de température par rapport à la consigne, en degrés, à partir duquel REFROIDISSEMENT/CHAUFFAGE est signalé comme inactif au lieu d'actif",
+              "derive_from_temp_fallback": "Pour les modes Chaud/Froid uniquement (les autres modes ne sont pas encore implémentés), activer le secours pour dériver l'action HVAC (chauffage/refroidissement/inactif) de la température actuelle par rapport à la température cible. Si désactivé, aucune action HVAC ne sera rapportée pour ces modes."
             }
           }
         }

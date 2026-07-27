@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "삐 소리 활성화",
+          "enable_hvac_action": "HVAC 작동 상태 활성화",
           "temp_step": "온도 조절 간격",
           "fan_speed_step": "Fan Speed Step",
           "max_connection_lifetime": "최대 연결 시간",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "HVAC 작동 보고를 활성화합니다. 기본 상태는 꺼짐, 건조 및 팬 모드에 사용됩니다. 냉방 및 난방 모드의 경우 모델별 감지가 아직 구현되지 않았으므로 온도 기반 폴백이 사용됩니다(아래에서 구성 가능).",
           "temp_step": "온도 조절 간격 설정",
           "fan_speed_step": "Step size for custom fan speeds",
           "max_connection_lifetime": "최대 연결 시간(초), 최소 15초"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "추가 작동 모드를 지정하세요"
+            }
+          },
+          "hvac_action": {
+            "name": "HVAC 작동 구성",
+            "data": {
+              "temperature_threshold": "온도 임계값",
+              "derive_from_temp_fallback": "온도에서 폴백으로 도출"
+            },
+            "data_description": {
+              "temperature_threshold": "설정 온도를 초과하는 온도 차이(도 단위)로, 이 값에 도달하면 냉방/난방이 작동 중 대신 유휴 상태로 표시됩니다",
+              "derive_from_temp_fallback": "Heat/Cool 모드에서만 현재 온도와 목표 온도의 비교를 기반으로 HVAC 작동을 도출하기 위한 폴백을 활성화합니다. 참고: 이 옵션이 비활성화되면 'HVAC 작동 활성화' 설정과 관계없이 HVAC 작동이 보고되지 않습니다."
             }
           }
         }

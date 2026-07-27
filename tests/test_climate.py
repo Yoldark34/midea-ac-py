@@ -2,12 +2,12 @@
 
 import logging
 from typing import Mapping
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 from homeassistant.components.climate.const import (PRESET_ECO, PRESET_SLEEP,
                                                     ClimateEntityFeature,
-                                                    HVACMode)
+                                                    HVACAction, HVACMode)
 from homeassistant.core import HomeAssistant
 from msmart.device import AirConditioner as AC
 from msmart.device import CommercialAirConditioner as CC
@@ -17,6 +17,10 @@ from custom_components.midea_ac.climate import (ClimateConfig,
                                                 MideaClimateACDevice,
                                                 MideaClimateCCDevice,
                                                 MideaClimateDevice)
+from custom_components.midea_ac.const import (
+    CONF_ENABLE_HVAC_ACTION, CONF_HVAC_ACTION,
+    CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK,
+    CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD)
 
 logging.basicConfig(level=logging.DEBUG)
 _LOGGER = logging.getLogger(__name__)
@@ -40,6 +44,9 @@ async def test_base_config(
         temperature_step=1,
         min_target_temperature=17,
         max_target_temperature=30,
+        enable_hvac_action=True,
+        hvac_action_temperature_threshold=0.5,
+        hvac_action_derive_from_temp_fallback=True,
         supported_operation_modes=[],
         supported_fan_speeds=[],
         supported_swing_modes=[],
@@ -75,6 +82,9 @@ async def test_base_config(
         temperature_step=1,
         min_target_temperature=17,
         max_target_temperature=30,
+        enable_hvac_action=True,
+        hvac_action_temperature_threshold=0.5,
+        hvac_action_derive_from_temp_fallback=True,
         supported_operation_modes=[],
         supported_fan_speeds=[AC.FanSpeed.AUTO],
         supported_swing_modes=[AC.SwingMode.BOTH],
@@ -236,3 +246,436 @@ async def test_preset_modes(
     # Assert configured modes are present
     for k, _ in config_modes.items():
         assert k in climate_device.preset_modes
+
+
+@pytest.mark.parametrize(
+    ("power_state", "operational_mode", "indoor_temperature",
+     "target_temperature", "expected_action"),
+    [
+        # Off
+        (False, AC.OperationalMode.COOL, 26, 24, HVACAction.OFF),
+        # Basic modes
+        (True, AC.OperationalMode.DRY, None, 24, HVACAction.DRYING),
+        (True, AC.OperationalMode.SMART_DRY, None, 24, HVACAction.DRYING),
+        (True, AC.OperationalMode.FAN_ONLY, None, 24, HVACAction.FAN),
+        # Cool
+        (True, AC.OperationalMode.COOL, 26, 24, HVACAction.COOLING),
+        (True, AC.OperationalMode.COOL, 24, 24, HVACAction.COOLING),
+        (True, AC.OperationalMode.COOL, 22, 24, HVACAction.IDLE),
+        # Cool - at the idle threshold: falls back to IDLE at the boundary,
+        # not just once the undershoot exceeds it
+        (True, AC.OperationalMode.COOL, 23.5, 24, HVACAction.IDLE),
+        (True, AC.OperationalMode.COOL, 23.6, 24, HVACAction.COOLING),
+        # Heat
+        (True, AC.OperationalMode.HEAT, 22, 24, HVACAction.HEATING),
+        (True, AC.OperationalMode.HEAT, 24, 24, HVACAction.HEATING),
+        (True, AC.OperationalMode.HEAT, 26, 24, HVACAction.IDLE),
+        # Heat - at the idle threshold: falls back to IDLE at the boundary,
+        # not just once the overshoot exceeds it
+        (True, AC.OperationalMode.HEAT, 24.5, 24, HVACAction.IDLE),
+        (True, AC.OperationalMode.HEAT, 24.4, 24, HVACAction.HEATING),
+        # Auto - direction cannot be reliably determined locally, see #449
+        (True, AC.OperationalMode.AUTO, 22, 24, None),
+        (True, AC.OperationalMode.AUTO, 24, 24, None),
+        (True, AC.OperationalMode.AUTO, 26, 24, None),
+        # No sensor input
+        (True, AC.OperationalMode.HEAT, None, 24, HVACAction.IDLE),
+        (True, AC.OperationalMode.COOL, None, 24, HVACAction.IDLE),
+        (True, AC.OperationalMode.AUTO, None, 24, None),
+    ],
+)
+async def test_ac_hvac_action(
+    hass: HomeAssistant,
+    power_state: bool,
+    operational_mode: AC.OperationalMode,
+    indoor_temperature: float | None,
+    target_temperature: float,
+    expected_action: HVACAction | None,
+):
+    """Test hvac_action reflects the mode for the AC device."""
+
+    mock_device = AC("0.0.0.0", 0, 0)
+    mock_device._power_state = power_state
+    mock_device._operational_mode = operational_mode
+    mock_device._indoor_temperature = indoor_temperature
+    mock_device._target_temperature = target_temperature
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateACDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: True})
+
+    assert climate_device.hvac_action == expected_action
+
+
+async def test_ac_hvac_action_defrosting(
+    hass: HomeAssistant,
+):
+    """Test hvac_action reports defrosting while heating with defrost active."""
+
+    mock_device = AC("0.0.0.0", 0, 0)
+    mock_device._power_state = True
+    mock_device._operational_mode = AC.OperationalMode.HEAT
+    mock_device._indoor_temperature = 22
+    mock_device._target_temperature = 24
+    mock_device._defrost_active = True
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateACDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: True})
+
+    assert climate_device.hvac_action == HVACAction.DEFROSTING
+
+
+async def test_ac_hvac_action_custom_threshold(
+    hass: HomeAssistant,
+):
+    """Test hvac_action honors a configured temperature threshold."""
+
+    mock_device = AC("0.0.0.0", 0, 0)
+    mock_device._power_state = True
+    mock_device._operational_mode = AC.OperationalMode.COOL
+    mock_device._indoor_temperature = 23
+    mock_device._target_temperature = 24
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    # A 1 degree undershoot is beyond the default 0.5 threshold, so the
+    # default threshold has already fallen back to idle
+    default_climate_device = MideaClimateACDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: True})
+    assert default_climate_device.hvac_action == HVACAction.IDLE
+
+    # ... but a custom, wider threshold keeps reporting active for longer
+    options = {
+        CONF_ENABLE_HVAC_ACTION: True,
+        CONF_HVAC_ACTION: {
+            CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD: 2.0,
+        }
+    }
+    custom_climate_device = MideaClimateACDevice(
+        hass, mock_coordinator, options)
+    assert custom_climate_device.hvac_action == HVACAction.COOLING
+
+
+async def test_ac_hvac_action_unsupported_mode(
+    hass: HomeAssistant,
+):
+    """Test hvac_action reports no action for a mode other than HEAT/COOL/AUTO/basic ones."""
+
+    mock_device = AC("0.0.0.0", 0, 0)
+    mock_device._power_state = True
+    mock_device._operational_mode = AC.OperationalMode.COOL
+    mock_device._indoor_temperature = 22
+    mock_device._target_temperature = 24
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateACDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: True})
+
+    # No supported operational mode maps to HVACMode.HEAT_COOL today, but we
+    # still shouldn't guess an action for it if one ever did.
+    with patch.object(
+        type(climate_device), "hvac_mode",
+        new_callable=PropertyMock, return_value=HVACMode.HEAT_COOL,
+    ):
+        assert climate_device.hvac_action is None
+
+
+@pytest.mark.parametrize(
+    ("options", "expected_action"),
+    [
+        # Default (option absent) - enabled by default
+        ({}, HVACAction.COOLING),
+        (dict.fromkeys([CONF_ENABLE_HVAC_ACTION], True), HVACAction.COOLING),
+        (dict.fromkeys([CONF_ENABLE_HVAC_ACTION], False), None),
+    ],
+)
+async def test_ac_hvac_action_enable_option(
+    hass: HomeAssistant,
+    options: Mapping[str, bool],
+    expected_action: HVACAction | None,
+):
+    """Test the enable_hvac_action option gates hvac_action reporting."""
+
+    mock_device = AC("0.0.0.0", 0, 0)
+    mock_device._power_state = True
+    mock_device._operational_mode = AC.OperationalMode.COOL
+    mock_device._indoor_temperature = 26
+    mock_device._target_temperature = 24
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateACDevice(hass, mock_coordinator, options)
+
+    assert climate_device.hvac_action == expected_action
+
+
+@pytest.mark.parametrize(
+    ("power_state", "operational_mode"),
+    [
+        (False, AC.OperationalMode.COOL),
+        (True, AC.OperationalMode.FAN_ONLY),
+        (True, AC.OperationalMode.DRY),
+        (True, AC.OperationalMode.COOL),
+        (True, AC.OperationalMode.HEAT),
+        (True, AC.OperationalMode.AUTO),
+    ],
+)
+async def test_ac_hvac_action_disabled_always_none(
+    hass: HomeAssistant,
+    power_state: bool,
+    operational_mode: AC.OperationalMode,
+):
+    """Test hvac_action is always None when disabled, regardless of mode."""
+
+    mock_device = AC("0.0.0.0", 0, 0)
+    mock_device._power_state = power_state
+    mock_device._operational_mode = operational_mode
+    mock_device._indoor_temperature = 26
+    mock_device._target_temperature = 24
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateACDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: False})
+
+    assert climate_device.hvac_action is None
+
+
+@pytest.mark.parametrize(
+    ("operational_mode", "expected_action"),
+    [
+        (AC.OperationalMode.COOL, None),
+        (AC.OperationalMode.HEAT, None),
+        (AC.OperationalMode.AUTO, None),
+    ],
+)
+async def test_ac_hvac_action_fallback_disabled(
+    hass: HomeAssistant,
+    operational_mode: AC.OperationalMode,
+    expected_action: HVACAction | None,
+):
+    """Test hvac_action returns None when fallback is disabled, even if enable_hvac_action=True."""
+
+    mock_device = AC("0.0.0.0", 0, 0)
+    mock_device._power_state = True
+    mock_device._operational_mode = operational_mode
+    mock_device._indoor_temperature = 26
+    mock_device._target_temperature = 24
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    options = {
+        CONF_ENABLE_HVAC_ACTION: True,
+        CONF_HVAC_ACTION: {
+            CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK: False,
+        }
+    }
+    climate_device = MideaClimateACDevice(hass, mock_coordinator, options)
+
+    # With fallback disabled, hvac_action should be None for COOL/HEAT/AUTO modes
+    assert climate_device.hvac_action is expected_action
+
+
+@pytest.mark.parametrize(
+    ("operational_mode", "expected_action", "fallback_enabled"),
+    [
+        # DRY always returns DRYING, regardless of fallback setting (not temp-derived)
+        (AC.OperationalMode.DRY, HVACAction.DRYING, True),
+        (AC.OperationalMode.DRY, HVACAction.DRYING, False),
+        # FAN_ONLY always returns FAN, regardless of fallback setting (not temp-derived)
+        (AC.OperationalMode.FAN_ONLY, HVACAction.FAN, True),
+        (AC.OperationalMode.FAN_ONLY, HVACAction.FAN, False),
+    ],
+)
+async def test_ac_hvac_action_hardcoded_modes_ignore_fallback(
+    hass: HomeAssistant,
+    operational_mode: AC.OperationalMode,
+    expected_action: HVACAction,
+    fallback_enabled: bool,
+):
+    """Test that hardcoded modes (DRY, FAN_ONLY) return fixed actions regardless of fallback.
+
+    These modes are not temperature-derived (not yet implemented), so their hvac_action
+    is independent of the derive_from_temp_fallback option.
+    """
+
+    mock_device = AC("0.0.0.0", 0, 0)
+    mock_device._power_state = True
+    mock_device._operational_mode = operational_mode
+    mock_device._indoor_temperature = 26
+    mock_device._target_temperature = 24
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    options = {
+        CONF_ENABLE_HVAC_ACTION: True,
+        CONF_HVAC_ACTION: {
+            CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK: fallback_enabled,
+        }
+    }
+    climate_device = MideaClimateACDevice(hass, mock_coordinator, options)
+
+    # Hardcoded modes always return their fixed action, fallback setting doesn't matter
+    assert climate_device.hvac_action == expected_action
+
+
+@pytest.mark.parametrize(
+    ("power_state", "operational_mode", "indoor_temperature",
+     "target_temperature", "expected_action"),
+    [
+        # Off
+        (False, CC.OperationalMode.COOL, 26, 24, HVACAction.OFF),
+        # Basic modes
+        (True, CC.OperationalMode.DRY, None, 24, HVACAction.DRYING),
+        (True, CC.OperationalMode.FAN, None, 24, HVACAction.FAN),
+        # Cool
+        (True, CC.OperationalMode.COOL, 26, 24, HVACAction.COOLING),
+        (True, CC.OperationalMode.COOL, 24, 24, HVACAction.COOLING),
+        (True, CC.OperationalMode.COOL, 22, 24, HVACAction.IDLE),
+        # Heat
+        (True, CC.OperationalMode.HEAT, 22, 24, HVACAction.HEATING),
+        (True, CC.OperationalMode.HEAT, 24, 24, HVACAction.HEATING),
+        (True, CC.OperationalMode.HEAT, 26, 24, HVACAction.IDLE),
+        # Auto - direction cannot be reliably determined locally, see #449
+        (True, CC.OperationalMode.AUTO, 22, 24, None),
+        (True, CC.OperationalMode.AUTO, 24, 24, None),
+        (True, CC.OperationalMode.AUTO, 26, 24, None),
+        # No sensor input
+        (True, CC.OperationalMode.HEAT, None, 24, HVACAction.IDLE),
+        (True, CC.OperationalMode.COOL, None, 24, HVACAction.IDLE),
+        (True, CC.OperationalMode.AUTO, None, 24, None),
+    ],
+)
+async def test_cc_hvac_action(
+    hass: HomeAssistant,
+    power_state: bool,
+    operational_mode: "CC.OperationalMode",
+    indoor_temperature: float | None,
+    target_temperature: float,
+    expected_action: HVACAction | None,
+):
+    """Test hvac_action reflects the mode for the CC device."""
+
+    mock_device = CC("0.0.0.0", 0, 0)
+    mock_device._power_state = power_state
+    mock_device._operational_mode = operational_mode
+    mock_device._indoor_temperature = indoor_temperature
+    mock_device._target_temperature = target_temperature
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateCCDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: True})
+
+    assert climate_device.hvac_action == expected_action
+
+
+@pytest.mark.parametrize(
+    ("power_state", "operational_mode"),
+    [
+        (False, CC.OperationalMode.COOL),
+        (True, CC.OperationalMode.FAN),
+        (True, CC.OperationalMode.DRY),
+        (True, CC.OperationalMode.COOL),
+        (True, CC.OperationalMode.HEAT),
+        (True, CC.OperationalMode.AUTO),
+    ],
+)
+async def test_cc_hvac_action_disabled_always_none(
+    hass: HomeAssistant,
+    power_state: bool,
+    operational_mode: "CC.OperationalMode",
+):
+    """Test hvac_action is always None when disabled, regardless of mode."""
+
+    mock_device = CC("0.0.0.0", 0, 0)
+    mock_device._power_state = power_state
+    mock_device._operational_mode = operational_mode
+    mock_device._indoor_temperature = 26
+    mock_device._target_temperature = 24
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateCCDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: False})
+
+    assert climate_device.hvac_action is None
+
+
+async def test_cc_hvac_action_unsupported_mode(
+    hass: HomeAssistant,
+):
+    """Test hvac_action reports no action for a mode other than HEAT/COOL/AUTO/basic ones."""
+
+    mock_device = CC("0.0.0.0", 0, 0)
+    mock_device._power_state = True
+    mock_device._operational_mode = CC.OperationalMode.COOL
+    mock_device._indoor_temperature = 22
+    mock_device._target_temperature = 24
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateCCDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: True})
+
+    # No supported operational mode maps to HVACMode.HEAT_COOL today, but we
+    # still shouldn't guess an action for it if one ever did.
+    with patch.object(
+        type(climate_device), "hvac_mode",
+        new_callable=PropertyMock, return_value=HVACMode.HEAT_COOL,
+    ):
+        assert climate_device.hvac_action is None
+
+
+async def test_cc_hvac_action_never_defrosting(
+    hass: HomeAssistant,
+):
+    """Test hvac_action never reports DEFROSTING for the CC device.
+
+    Unlike the AC device, commercial units don't expose a defrost signal,
+    and MideaClimateCCDevice doesn't override hvac_action to check for one.
+    """
+
+    mock_device = MagicMock()
+    mock_device.power_state = True
+    mock_device.operational_mode = CC.OperationalMode.HEAT
+    mock_device.indoor_temperature = 22
+    mock_device.target_temperature = 24
+    # A real CC device has no defrost_active attribute at all, but even if
+    # something set a defrost-like flag, hvac_action must ignore it.
+    mock_device.defrost_active = True
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.apply = AsyncMock()
+    mock_coordinator.device = mock_device
+
+    climate_device = MideaClimateCCDevice(
+        hass, mock_coordinator, {CONF_ENABLE_HVAC_ACTION: True})
+
+    assert climate_device.hvac_action == HVACAction.HEATING

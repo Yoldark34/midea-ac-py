@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "Ativar Beeps",
+          "enable_hvac_action": "Ativar ação HVAC",
           "temp_step": "Valor de incremento/decremento de temperatura",
           "fan_speed_step": "Fan Speed Step",
           "max_connection_lifetime": "Tempo máximo de ligação",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "Ativar relatório de ação HVAC. O status nativo é usado para os modos Desligar, Secar e Ventilador. Para os modos Refrigeração e Aquecimento, a detecção específica do modelo ainda não foi implementada, portanto, um fallback baseado em temperatura é usado (configurável abaixo).",
           "temp_step": "Valor de incremento/decremento para a temperatura",
           "fan_speed_step": "Step size for custom fan speeds",
           "max_connection_lifetime": "Tempo máximo, em segundos, que uma ligação é usada (mínimo 15 segundos)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Especifique Modos de Funcionamento Adicionais"
+            }
+          },
+          "hvac_action": {
+            "name": "Configuração da ação HVAC",
+            "data": {
+              "temperature_threshold": "Limite de temperatura",
+              "derive_from_temp_fallback": "Derivar da temperatura como fallback"
+            },
+            "data_description": {
+              "temperature_threshold": "Desvio de temperatura além do ponto de ajuste, em graus, a partir do qual REFRIGERAÇÃO/AQUECIMENTO é reportado como inativo em vez de ativo",
+              "derive_from_temp_fallback": "Habilite fallback para derivar a ação HVAC da temperatura atual em relação à temperatura alvo quando o dispositivo não a relatar. Nota: A implementação atual não suporta relatório de ação HVAC por modelo de dispositivo, portanto nenhuma ação HVAC será relatada se esta opção for desabilitada, independentemente da configuração 'Habilitar ação HVAC'."
             }
           }
         }

@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "Aktiver lydsignal",
+          "enable_hvac_action": "Aktiver HVAC-handling",
           "temp_step": "Temperaturtrinn",
           "fan_speed_step": "Viftehastighetstrinn",
           "max_connection_lifetime": "Maksimal tilkoblingstid",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "Aktiver HVAC-handlingsrapportering. Innebygd status brukes for moduene Av, Tørking og Vifte. For kjøle- og varmemodus er modellspesifikk deteksjon ikke implementert ennå, så en temperaturbasert backup brukes (konfigurerbar nedenfor).",
           "temp_step": "Trinnstørrelse for temperaturinnstilling",
           "fan_speed_step": "Trinnstørrelse for egendefinerte viftehastigheter",
           "max_connection_lifetime": "Maksimal tid i sekunder en tilkobling vil bli brukt (minimum 15 sekunder)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Spesifiser ekstra driftsmoduser"
+            }
+          },
+          "hvac_action": {
+            "name": "HVAC-handlingskonfigurasjon",
+            "data": {
+              "temperature_threshold": "Temperaturterskel",
+              "derive_from_temp_fallback": "Utled fra temperatur som tilbakefall"
+            },
+            "data_description": {
+              "temperature_threshold": "Temperaturoverskridelse over settpunktet, i grader, som KJØLING/OPPVARMING rapporteres som inaktiv i stedet for aktiv fra og med",
+              "derive_from_temp_fallback": "Aktiver tilbakefall for å utlede HVAC-handling fra gjeldende sammenlignet med måltemperatur for Heat/Cool-moduser. Merk: Hvis dette alternativet er deaktivert, rapporteres ingen HVAC-handling, uavhengig av innstillingen 'Aktiver HVAC-handling'."
             }
           }
         }

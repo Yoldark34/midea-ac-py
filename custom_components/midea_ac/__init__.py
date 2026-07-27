@@ -16,9 +16,13 @@ from msmart.device import AirConditioner as AC
 from msmart.device import CommercialAirConditioner as CC
 from msmart.lan import AuthenticationError
 
+from .config_flow import _DEFAULT_OPTIONS
 from .const import (CONF_ADDITIONAL_OPERATION_MODES, CONF_CAPABILITY_OVERRIDES,
-                    CONF_DEVICE_TYPE, CONF_ENERGY_DATA_FORMAT,
-                    CONF_ENERGY_DATA_SCALE, CONF_ENERGY_SENSOR, CONF_KEY,
+                    CONF_DEVICE_TYPE, CONF_ENABLE_HVAC_ACTION,
+                    CONF_ENERGY_DATA_FORMAT, CONF_ENERGY_DATA_SCALE,
+                    CONF_ENERGY_SENSOR, CONF_HVAC_ACTION,
+                    CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK,
+                    CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD, CONF_KEY,
                     CONF_MAX_CONNECTION_LIFETIME,
                     CONF_MERGE_CAPABILITY_OVERRIDES, CONF_POWER_SENSOR,
                     CONF_SHOW_ALL_PRESETS, CONF_USE_FAN_ONLY_WORKAROUND,
@@ -204,6 +208,33 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
             hass.config_entries.async_update_entry(
                 config_entry, options=new_options, minor_version=6)
+
+        # 1.6 -> 1.7: Add defaults for the new hvac_action options. Both
+        # options apply to every device type - deriving hvac_action only
+        # needs current/target temperature, which AC and commercial entries
+        # alike report.
+        if config_entry.minor_version == 6:
+            new_options = {**config_entry.options}
+
+            new_options.setdefault(
+                CONF_ENABLE_HVAC_ACTION, _DEFAULT_OPTIONS[CONF_ENABLE_HVAC_ACTION])
+
+            # Backfill each hvac_action sub-key individually rather than the
+            # whole dict at once, so an entry that already has a partial
+            # hvac_action dict (e.g. only temperature_threshold) still gets
+            # derive_from_temp_fallback filled in instead of it being
+            # silently skipped because the outer key already exists.
+            hvac_action_options = {**new_options.get(CONF_HVAC_ACTION, {})}
+            hvac_action_options.setdefault(
+                CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD,
+                _DEFAULT_OPTIONS[CONF_HVAC_ACTION][CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD])
+            hvac_action_options.setdefault(
+                CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK,
+                _DEFAULT_OPTIONS[CONF_HVAC_ACTION][CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK])
+            new_options[CONF_HVAC_ACTION] = hvac_action_options
+
+            hass.config_entries.async_update_entry(
+                config_entry, options=new_options, minor_version=7)
 
     _LOGGER.debug("Migration to configuration version %s.%s successful.",
                   config_entry.version, config_entry.minor_version)

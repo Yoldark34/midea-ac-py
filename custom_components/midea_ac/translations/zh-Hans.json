@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "启用蜂鸣器",
+          "enable_hvac_action": "启用 HVAC 状态",
           "temp_step": "温度步进",
           "fan_speed_step": "Fan Speed Step",
           "max_connection_lifetime": "最大连接有效期",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "启用 HVAC 操作报告。本地状态用于关闭、干燥和风扇模式。对于冷却和加热模式，尚未实现特定于型号的检测，因此使用基于温度的备用（可在下方配置）。",
           "temp_step": "温度设定的步进值",
           "fan_speed_step": "Step size for custom fan speeds",
           "max_connection_lifetime": "单次连接的最大有效期(单位为秒，最短15秒)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "指定额外的运行模式"
+            }
+          },
+          "hvac_action": {
+            "name": "HVAC 动作配置",
+            "data": {
+              "temperature_threshold": "温度阈值",
+              "derive_from_temp_fallback": "从温度派生作为备用"
+            },
+            "data_description": {
+              "temperature_threshold": "超出设定温度的温差(摄氏度)，达到该温差后制冷/制热将回报为空闲状态而非运行状态",
+              "derive_from_temp_fallback": "对于制冷/制热模式，从当前温度与目标温度推导HVAC动作（制热/制冷/空闲）的备用方案。注意：设备本身不报告HVAC动作，因此如果禁用此功能，无论'启用HVAC动作'设置如何，都不会报告任何HVAC动作。"
             }
           }
         }

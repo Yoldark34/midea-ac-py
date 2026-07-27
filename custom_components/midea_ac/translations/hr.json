@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "Omogući zvučni signal",
+          "enable_hvac_action": "Omogući radnju HVAC",
           "temp_step": "Temperaturni korak",
           "fan_speed_step": "Veličina koraka za prilagođene brzine ventilatora",
           "max_connection_lifetime": "Maksimalno trajanje veze",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "Omogućite HVAC izvještaj o akciji. Nativni status koristi se za načine Isključeno, Suho i Ventilator. Za načine hlađenja i grijanja, detekcija specifična za model još nije implementirana, pa se koristi sigurnosna vrijednost na osnovu temperature (konfigurabilna dolje).",
           "temp_step": "Veličina koraka za zadanu vrijednost temperature",
           "fan_speed_step": "Veličina koraka za prilagođene brzine ventilatora",
           "max_connection_lifetime": "Maksimalno vrijeme u sekundama tijekom kojeg će se veza koristiti (najmanje 15 sekundi)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Navedite dodatne načine rada"
+            }
+          },
+          "hvac_action": {
+            "name": "Konfiguracija HVAC radnje",
+            "data": {
+              "temperature_threshold": "Temperaturni prag",
+              "derive_from_temp_fallback": "Izvedite iz temperature kao povratnu vrijednost"
+            },
+            "data_description": {
+              "temperature_threshold": "Prekoračenje temperature iznad zadane vrijednosti, u stupnjevima, od kojeg se HLAĐENJE/GRIJANJE prijavljuje kao neaktivno umjesto aktivno",
+              "derive_from_temp_fallback": "Omogući povratnu vrijednost za izvedbu HVAC akcije iz trenutne temperature u odnosu na ciljanu temperaturu kada uređaj ne izvještava. Napomena: Trenutna implementacija ne podržava izvještavanje HVAC akcije po modelu uređaja, zato ako je ova opcija onemogućena, neće se izvještavati nikakva HVAC akcija, bez obzira na postavku 'Omogući HVAC akciju'."
             }
           }
         }

@@ -9,17 +9,14 @@ from homeassistant.core import HomeAssistant
 from msmart.const import DeviceType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.midea_ac.const import (CONF_ADDITIONAL_OPERATION_MODES,
-                                              CONF_CAPABILITY_OVERRIDES,
-                                              CONF_DEVICE_TYPE,
-                                              CONF_ENERGY_DATA_FORMAT,
-                                              CONF_ENERGY_DATA_SCALE,
-                                              CONF_ENERGY_SENSOR,
-                                              CONF_POWER_SENSOR,
-                                              CONF_SHOW_ALL_PRESETS,
-                                              CONF_USE_FAN_ONLY_WORKAROUND,
-                                              CONF_WORKAROUNDS, DOMAIN,
-                                              EnergyFormat)
+from custom_components.midea_ac.const import (
+    CONF_ADDITIONAL_OPERATION_MODES, CONF_CAPABILITY_OVERRIDES,
+    CONF_DEVICE_TYPE, CONF_ENABLE_HVAC_ACTION, CONF_ENERGY_DATA_FORMAT,
+    CONF_ENERGY_DATA_SCALE, CONF_ENERGY_SENSOR, CONF_HVAC_ACTION,
+    CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK,
+    CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD, CONF_POWER_SENSOR,
+    CONF_SHOW_ALL_PRESETS, CONF_USE_FAN_ONLY_WORKAROUND, CONF_WORKAROUNDS,
+    DOMAIN, EnergyFormat)
 
 logging.basicConfig(level=logging.DEBUG)
 _LOGGER = logging.getLogger(__name__)
@@ -67,7 +64,7 @@ async def test_config_entry_migration_from_5(hass: HomeAssistant) -> None:
 
     # Assert expected version
     assert mock_config_entry.version == 1
-    assert mock_config_entry.minor_version == 6
+    assert mock_config_entry.minor_version == 7
 
     # Grab options to test migration
     options = mock_config_entry.options
@@ -105,7 +102,7 @@ async def test_config_entry_migration_from_4(hass: HomeAssistant) -> None:
         await hass.async_block_till_done()
 
     assert mock_config_entry.version == 1
-    assert mock_config_entry.minor_version == 6
+    assert mock_config_entry.minor_version == 7
     assert mock_config_entry.data[CONF_DEVICE_TYPE] == DeviceType.AIR_CONDITIONER
 
 
@@ -135,7 +132,7 @@ async def test_config_entry_migration_from_3(hass: HomeAssistant) -> None:
 
     # Assert expected version
     assert mock_config_entry.version == 1
-    assert mock_config_entry.minor_version == 6
+    assert mock_config_entry.minor_version == 7
 
     # Grab options to test migration
     options = mock_config_entry.options
@@ -208,7 +205,7 @@ async def test_config_entry_migration_from_3_energy_formats(
 
     # Assert expected version
     assert mock_config_entry.version == 1
-    assert mock_config_entry.minor_version == 6
+    assert mock_config_entry.minor_version == 7
 
     # Grab options to test migration
     options = mock_config_entry.options
@@ -258,7 +255,7 @@ async def test_config_entry_migration_from_2(
 
     # Assert expected version
     assert mock_config_entry.version == 1
-    assert mock_config_entry.minor_version == 6
+    assert mock_config_entry.minor_version == 7
 
     # Grab options to test migration
     options = mock_config_entry.options
@@ -293,5 +290,88 @@ async def test_config_entry_migration_from_1(hass: HomeAssistant) -> None:
         await hass.async_block_till_done()
 
     assert mock_config_entry.version == 1
-    assert mock_config_entry.minor_version == 6
+    assert mock_config_entry.minor_version == 7
     assert isinstance(mock_config_entry.unique_id, str)
+
+
+# Hardcoded on purpose, not read from config_flow._DEFAULT_OPTIONS: if a
+# future change flips one of these defaults, this test must fail and force
+# a deliberate update here, rather than silently tracking whatever the
+# production default happens to be at the time.
+_EXPECTED_DEFAULT_ENABLE_HVAC_ACTION = True
+_EXPECTED_DEFAULT_HVAC_ACTION = {
+    CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD: 0.5,
+    CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK: True,
+}
+
+
+@pytest.mark.parametrize(
+    ("device_type", "existing_options",
+     "expected_enable_hvac_action", "expected_hvac_action"),
+    [
+        # AC entry missing both options gets both defaults backfilled
+        (DeviceType.AIR_CONDITIONER, {},
+         _EXPECTED_DEFAULT_ENABLE_HVAC_ACTION,
+         _EXPECTED_DEFAULT_HVAC_ACTION),
+        # AC entry with explicit values (deliberately not matching the
+        # defaults) keeps them untouched
+        (DeviceType.AIR_CONDITIONER, {
+            CONF_ENABLE_HVAC_ACTION: True,
+            CONF_HVAC_ACTION: {
+                CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD: 1.0,
+                CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK: False,
+            },
+        }, True, {
+            CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD: 1.0,
+            CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK: False,
+        }),
+        # AC entry with a partial hvac_action dict (only threshold set, e.g.
+        # from before derive_from_temp_fallback existed) gets just the
+        # missing sub-key backfilled, not the whole dict skipped
+        (DeviceType.AIR_CONDITIONER, {
+            CONF_ENABLE_HVAC_ACTION: True,
+            CONF_HVAC_ACTION: {CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD: 1.0},
+        }, True, {
+            CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD: 1.0,
+            CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK:
+                _EXPECTED_DEFAULT_HVAC_ACTION[CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK],
+        }),
+        # Commercial entry missing both options gets both defaults
+        # backfilled too - deriving hvac_action only needs current/target
+        # temperature, which both device types report
+        (DeviceType.COMMERCIAL_AC, {},
+         _EXPECTED_DEFAULT_ENABLE_HVAC_ACTION,
+         _EXPECTED_DEFAULT_HVAC_ACTION),
+    ],
+)
+async def test_config_entry_migration_from_6(
+    hass: HomeAssistant,
+    device_type: DeviceType,
+    existing_options: dict[str, Any],
+    expected_enable_hvac_action: bool | None,
+    expected_hvac_action: dict[str, float],
+) -> None:
+    """Test migration of config entry from 1.6"""
+
+    # Create a mock v1.6 config entry
+    mock_config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        minor_version=6,
+        data={CONF_DEVICE_TYPE: device_type},
+        options=existing_options,
+    )
+
+    with patch(
+        "custom_components.midea_ac.async_setup_entry",
+        return_value=True,
+    ):
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.version == 1
+    assert mock_config_entry.minor_version == 7
+    assert mock_config_entry.options.get(
+        CONF_ENABLE_HVAC_ACTION) == expected_enable_hvac_action
+    assert mock_config_entry.options.get(
+        CONF_HVAC_ACTION) == expected_hvac_action

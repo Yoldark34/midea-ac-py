@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "Abilita Beep",
+          "enable_hvac_action": "Abilita azione HVAC",
           "temp_step": "Incremento temperatura",
           "fan_speed_step": "Incremento velocità della ventola",
           "max_connection_lifetime": "Durata massima della connessione",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "Abilita la segnalazione dell'azione HVAC. Lo stato nativo viene utilizzato per i modi Spento, Asciutto e Ventilatore. Per i modi Raffreddamento e Riscaldamento, il rilevamento specifico del modello non è ancora implementato, quindi viene utilizzato un fallback basato sulla temperatura (configurabile di seguito).",
           "temp_step": "Incremento per la configurazione della temperatura",
           "fan_speed_step": "Incremento per la configurazione della velocità della ventola",
           "max_connection_lifetime": "Tempo massimo di utilizzo per ciascuna connessione in secondi (minimo 15 secondi)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Specifica ulteriori modalità aggiuntive"
+            }
+          },
+          "hvac_action": {
+            "name": "Configurazione dell'azione HVAC",
+            "data": {
+              "temperature_threshold": "Soglia di temperatura",
+              "derive_from_temp_fallback": "Derivare dalla temperatura come fallback"
+            },
+            "data_description": {
+              "temperature_threshold": "Scostamento di temperatura rispetto al setpoint, in gradi, a partire dal quale RAFFREDDAMENTO/RISCALDAMENTO viene segnalato come inattivo anziché attivo",
+              "derive_from_temp_fallback": "Abilita il fallback per derivare l'azione HVAC dalla temperatura attuale rispetto alla temperatura target quando il dispositivo non la riporta. Nota: L'implementazione attuale non supporta il reporting dell'azione HVAC per modello di dispositivo, quindi nessuna azione HVAC verrà riportata se questa opzione è disabilitata, indipendentemente dall'impostazione 'Abilita azione HVAC'."
             }
           }
         }

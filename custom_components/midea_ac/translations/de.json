@@ -76,12 +76,14 @@
         "description": "Erweiterte Integrationseinstellungen.",
         "data": {
           "prompt_tone": "Signalton aktivieren",
+          "enable_hvac_action": "HVAC-Aktion aktivieren",
           "temp_step": "Temperaturschritte",
           "fan_speed_step": "Lüftergeschwindigkeitsschritte",
           "max_connection_lifetime": "Maximale Verbindungsdauer",
           "swing_angle_rtl": "Horizontalen Schwenkwinkel umkehren"
         },
         "data_description": {
+          "enable_hvac_action": "HVAC-Aktionsmeldung aktivieren. Der native Status wird für Aus-, Trocken- und Lüftermodi verwendet. Für Kühl- und Heizmodi ist die modellspezifische Erkennung noch nicht implementiert, daher wird ein temperaturbasiertes Fallback verwendet (konfigurierbar unten).",
           "temp_step": "Schrittgröße für Temperatureinstellung",
           "fan_speed_step": "Schrittgröße für Lüftergeschwindigkeit",
           "max_connection_lifetime": "Maximale Zeit in Sekunden, die eine Verbindung verwendet wird (mindestens 15 Sekunden)"
@@ -118,6 +120,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Zusätzliche Betriebsmodi angeben"
+            }
+          },
+          "hvac_action": {
+            "name": "HVAC-Aktionskonfiguration",
+            "data": {
+              "temperature_threshold": "Temperaturschwelle",
+              "derive_from_temp_fallback": "Von Temperatur als Fallback ableiten"
+            },
+            "data_description": {
+              "temperature_threshold": "Temperaturüberschreitung über den Sollwert hinaus, in Grad, ab der KÜHLEN/HEIZEN als Leerlauf statt als aktiv gemeldet wird",
+              "derive_from_temp_fallback": "Aktivieren Sie das Fallback, um die HVAC-Aktion von der aktuellen im Vergleich zur Solltemperatur abzuleiten, wenn das Gerät diese nicht meldet. Hinweis: Die aktuelle Implementierung unterstützt das Melden von HVAC-Aktionen nach Gerätemodell nicht, daher wird keine HVAC-Aktion gemeldet, wenn diese Option deaktiviert ist, unabhängig von der Einstellung 'HVAC-Aktion aktivieren'."
             }
           }
         }

@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "Beepa gaitu",
+          "enable_hvac_action": "Gaitu HVAC ekintza",
           "temp_step": "Tenperatura Urratsa",
           "fan_speed_step": "Haizagailu Abiadura Pausuak",
           "max_connection_lifetime": "Gehienezko Konexio-Denbora",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "Gaitu HVAC ekintza txostena. Jatorrizko egoera erabiltzen da Itzalita, Lehorra eta Aireztaria modentzat. Hozgarri eta Berogailu modentzat, modeloari espezifikoa den detekzioa oraindik ez dago inplementatuta, beraz tenperatura-oinarritutako atzealdea erabiltzen da (konfiguragarria behean).",
           "temp_step": "Tenperaturaren ezarpen-punturako urratsaren tamaina",
           "fan_speed_step": "Urrats-tamaina haizagailuen abiadura pertsonalizatuetarako",
           "max_connection_lifetime": "Konexio bat gehienezko denbora segundotan erabiliko dena (15 segundo gutxienez)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Zehaztu eragiketa modu osagarriak"
+            }
+          },
+          "hvac_action": {
+            "name": "HVAC ekintzaren konfigurazioa",
+            "data": {
+              "temperature_threshold": "Tenperatura atalasea",
+              "derive_from_temp_fallback": "Atzealdetik tenperaturatik atera"
+            },
+            "data_description": {
+              "temperature_threshold": "Konsignaren gainetiko tenperatura-desbiderapena, graduetan, zeinetik aurrera HOZTEA/BEROTZEA aktibo ordez inaktibo gisa jakinaraziko den",
+              "derive_from_temp_fallback": "Gaitu atzealdetik HVAC ekintza uneko tenperaturatik atera nahi duzunean xede tenperaturarekin konparatuta, gailuak ez duenean ematen. Oharra: Uneko inplementazioak ez du onartzen HVAC ekintzaren txostena gailuaren modeloaren arabera, beraz, opsio hau desgaituta badago, ez da HVAC ekintzarik emango."
             }
           }
         }

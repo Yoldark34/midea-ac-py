@@ -9,6 +9,7 @@ UPDATE_INTERVAL = 15
 
 CONF_KEY = "k1"
 CONF_BEEP = "prompt_tone"
+CONF_ENABLE_HVAC_ACTION = "enable_hvac_action"
 CONF_TEMP_STEP = "temp_step"
 CONF_FAN_SPEED_STEP = "fan_speed_step"
 CONF_WORKAROUNDS = "workarounds"
@@ -26,6 +27,9 @@ CONF_SWING_ANGLE_RTL = "swing_angle_rtl"
 CONF_DEVICE_TYPE = "device_type"
 CONF_CAPABILITY_OVERRIDES = "capability_overrides"
 CONF_MERGE_CAPABILITY_OVERRIDES = "merge_capability_overrides"
+CONF_HVAC_ACTION = "hvac_action"
+CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD = "temperature_threshold"
+CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK = "derive_from_temp_fallback"
 
 PRESET_IECO = "ieco"
 PRESET_SILENT = "silent"

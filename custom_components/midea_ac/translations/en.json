@@ -76,6 +76,7 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "Enable Beep",
+          "enable_hvac_action": "Enable HVAC Action",
           "temp_step": "Temperature Step",
           "fan_speed_step": "Fan Speed Step",
           "max_connection_lifetime": "Maximum Connection Lifetime",
@@ -84,6 +85,7 @@
           "merge_capability_overrides": "Merge Overrides"
         },
         "data_description": {
+          "enable_hvac_action": "Enable HVAC action reporting. Native status is used for Off, Dry, and Fan modes. For Cool and Heat modes, model-specific detection is not yet implemented, so a temperature-based fallback is used (configurable below).",
           "temp_step": "Step size for temperature set point",
           "fan_speed_step": "Step size for custom fan speeds",
           "max_connection_lifetime": "Maximum time in seconds a connection will be used (15 second minimum)",
@@ -120,6 +122,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Specify additional operational modes"
+            }
+          },
+          "hvac_action": {
+            "name": "HVAC Action Configuration",
+            "data": {
+              "temperature_threshold": "Temperature Threshold",
+              "derive_from_temp_fallback": "Derive from Temperature as Fallback"
+            },
+            "data_description": {
+              "temperature_threshold": "Temperature overshoot past the setpoint, in degrees, from which COOL/HEAT reports idle instead of active",
+              "derive_from_temp_fallback": "For Heat/Cool modes only (other modes are not yet implemented), enable fallback to derive HVAC action (heating/cooling/idle) from current vs. target temperature. If disabled, no HVAC action will be reported for these modes."
             }
           }
         }

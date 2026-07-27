@@ -33,9 +33,11 @@ from msmart.lan import AuthenticationError
 
 from .const import (CONF_BEEP, CONF_CAPABILITY_OVERRIDES,
                     CONF_CLOUD_COUNTRY_CODES, CONF_DEFAULT_CLOUD_COUNTRY,
-                    CONF_DEVICE_TYPE, CONF_ENERGY_DATA_FORMAT,
-                    CONF_ENERGY_DATA_SCALE, CONF_ENERGY_SENSOR,
-                    CONF_FAN_SPEED_STEP, CONF_KEY,
+                    CONF_DEVICE_TYPE, CONF_ENABLE_HVAC_ACTION,
+                    CONF_ENERGY_DATA_FORMAT, CONF_ENERGY_DATA_SCALE,
+                    CONF_ENERGY_SENSOR, CONF_FAN_SPEED_STEP, CONF_HVAC_ACTION,
+                    CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK,
+                    CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD, CONF_KEY,
                     CONF_MAX_CONNECTION_LIFETIME,
                     CONF_MERGE_CAPABILITY_OVERRIDES, CONF_POWER_SENSOR,
                     CONF_SWING_ANGLE_RTL, CONF_TEMP_STEP,
@@ -49,7 +51,12 @@ _DEFAULT_OPTIONS = {
     CONF_MAX_CONNECTION_LIFETIME: None,
     CONF_SWING_ANGLE_RTL: False,
     CONF_CAPABILITY_OVERRIDES: "",
-    CONF_MERGE_CAPABILITY_OVERRIDES: True
+    CONF_MERGE_CAPABILITY_OVERRIDES: True,
+    CONF_ENABLE_HVAC_ACTION: True,
+    CONF_HVAC_ACTION: {
+        CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD: 0.5,
+        CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK: True,
+    },
 }
 
 _DEFAULT_AC_OPTIONS = {
@@ -78,7 +85,7 @@ class MideaConfigFlow(ConfigFlow, domain=DOMAIN):
     """Config flow for Midea Smart AC."""
 
     VERSION = 1
-    MINOR_VERSION = 6
+    MINOR_VERSION = 7
 
     async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         """Handle a config flow initialized by the user."""
@@ -463,6 +470,27 @@ class MideaConfigFlow(ConfigFlow, domain=DOMAIN):
 class MideaOptionsFlow(OptionsFlow):
     """Options flow from Midea Smart AC."""
 
+    _HVAC_ACTION_SCHEMA = section(
+        vol.Schema({
+            vol.Optional(
+                CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK,
+                default=_DEFAULT_OPTIONS[CONF_HVAC_ACTION][CONF_HVAC_ACTION_DERIVE_FROM_TEMP_FALLBACK]
+            ): cv.boolean,
+            vol.Optional(
+                CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD,
+                default=_DEFAULT_OPTIONS[CONF_HVAC_ACTION][CONF_HVAC_ACTION_TEMPERATURE_THRESHOLD]
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    step=.01,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement=DEGREE
+                )
+            ),
+        }),
+        {"collapsed": True},
+    )
+
     _BASE_SCHEMA = vol.Schema(
         {
             vol.Optional(CONF_SWING_ANGLE_RTL): cv.boolean,
@@ -485,6 +513,8 @@ class MideaOptionsFlow(OptionsFlow):
                 )
             ),
             vol.Optional(CONF_MERGE_CAPABILITY_OVERRIDES): cv.boolean,
+            vol.Optional(CONF_ENABLE_HVAC_ACTION): cv.boolean,
+            vol.Optional(CONF_HVAC_ACTION): _HVAC_ACTION_SCHEMA,
         }
     )
 
@@ -525,11 +555,8 @@ class MideaOptionsFlow(OptionsFlow):
         }
     )
 
-    _CC_OPTION_SCHEMA = vol.Schema({})
-
     _DEVICE_SCHEMAS = {
         DeviceType.AIR_CONDITIONER: _AC_OPTION_SCHEMA,
-        DeviceType.COMMERCIAL_AC: _CC_OPTION_SCHEMA,
     }
 
     async def async_step_init(self, user_input=None) -> ConfigFlowResult:

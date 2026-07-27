@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "啟用嗶聲",
+          "enable_hvac_action": "啟用 HVAC 狀態",
           "temp_step": "溫度步進",
           "fan_speed_step": "Fan Speed Step",
           "max_connection_lifetime": "最大連結有效期",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "啟用 HVAC 操作報告。本機狀態用於關閉、乾燥和風扇模式。對於冷卻和加熱模式，尚未實現特定於型號的檢測，因此使用基於溫度的備用（可在下方配置）。",
           "temp_step": "溫度設置的步進值",
           "fan_speed_step": "Step size for custom fan speeds",
           "max_connection_lifetime": "單次連結的最大有效期(單位為秒，最短15秒)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "指定額外的執行模式"
+            }
+          },
+          "hvac_action": {
+            "name": "HVAC 動作設定",
+            "data": {
+              "temperature_threshold": "溫度閾值",
+              "derive_from_temp_fallback": "從溫度派生作為備用"
+            },
+            "data_description": {
+              "temperature_threshold": "超出設定溫度的溫差(攝氏度)，達到該溫差後製冷/製熱將回報為閒置狀態而非運作中",
+              "derive_from_temp_fallback": "對於製冷/製熱模式，從當前溫度與目標溫度推導HVAC動作（加熱/冷卻/空閒）的備用方案。注意：設備本身不報告HVAC動作，因此如果禁用此功能，無論'啟用HVAC動作'設置如何，都不會報告任何HVAC動作。"
             }
           }
         }

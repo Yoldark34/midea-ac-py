@@ -75,12 +75,14 @@
         "description": "Advanced integration settings.",
         "data": {
           "prompt_tone": "Omogoči piskanje(Beep)",
+          "enable_hvac_action": "Omogoči dejanje HVAC",
           "temp_step": "Temperaturni korak",
           "fan_speed_step": "Fan Speed Step",
           "max_connection_lifetime": "Najdalši čas povezave",
           "swing_angle_rtl": "Reverse Horizontal Swing Angle"
         },
         "data_description": {
+          "enable_hvac_action": "Omogoči poročanje dejanja HVAC. Rodiljno stanje se uporablja za načine Izklopljeno, Suho in Ventilator. Za načine hlajenja in ogrevanja zaznavanje specifično za model še ni implementirano, zato se uporablja rezervna temperatura (nastavljivo spodaj).",
           "temp_step": "Velikost koraka za nastavljeno temperaturo",
           "fan_speed_step": "Step size for custom fan speeds",
           "max_connection_lifetime": "Najdaljši čas v sekundah uporabljene povezava (najmanj 15 sekund)"
@@ -117,6 +119,17 @@
             },
             "data_description": {
               "additional_operation_modes": "Določite dodatne načine delovanja"
+            }
+          },
+          "hvac_action": {
+            "name": "Konfiguracija dejanja HVAC",
+            "data": {
+              "temperature_threshold": "Temperaturni prag",
+              "derive_from_temp_fallback": "Izpelji iz temperature kot rezervna možnost"
+            },
+            "data_description": {
+              "temperature_threshold": "Preseganje temperature nad nastavljeno vrednostjo, v stopinjah, od katerega se HLAJENJE/OGREVANJE javlja kot mirujoče namesto aktivno",
+              "derive_from_temp_fallback": "Omogočite rezervno možnost za izpeljavo dejanja HVAC iz trenutne temperature v primerjavi s ciljno za Heat/Cool načine. Opomba: Če je ta možnost onemogočena, se dejanje HVAC ne bo poročalo, ne glede na nastavko 'Omogoči dejanje HVAC'."
             }
           }
         }
